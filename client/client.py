@@ -89,9 +89,3 @@ input_box.bind('<Return>', lambda e: send_message())
 root.after(100, connect_to_server)
 
 root.mainloop()
-
-
-
-
-
-
