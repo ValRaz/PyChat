@@ -1,22 +1,54 @@
 import socket
 import threading
+import random
 
-# Handles single client communication with message echoing.
+# Keeps track of all active client connections
+clients = []
+clients_lock = threading.Lock()
+# Maps socket -> user ID string
+user_ids = {}
+
+# Sends message to all connected except the sender
+def broadcast(msg_bytes):
+    with clients_lock:
+        for conn in clients:
+            try:
+                conn.sendall(msg_bytes)
+            except:
+                pass
+
+# Handles per client messaging
 def handle_client(conn, addr):
+    # Generates and stores a UID
+    uid = f"{random.randint(0, 99999):05d}"
+    # Adds new client to the list
+    with clients_lock:
+        clients.append(conn)
+
     print(f"[PyChat Server] Connection from {addr}")
     conn.sendall(b"Welcome to PyChat Server!")
-    while True:
-        try:
+    # Displays assigned ID to the user:
+    conn.sendall(f"ID:{uid}".encode('utf-8'))
+
+    try:
+        while True:
             data = conn.recv(1024)
             if not data:
                 break
+
             message = data.decode('utf-8')
             print(f"[PyChat Server] Received from {addr}: {message}")
-            conn.sendall(f"User: {message}".encode('utf-8'))
-        except ConnectionResetError:
-            break
-    conn.close()
-    print(f"[PyChat Server] Disconnected {addr}")
+
+            # Broadcast to all other clients
+            broadcast(f"{uid}: {message}".encode('utf-8'))
+    except ConnectionResetError:
+        pass
+    finally:
+        # Remove this client and clean up
+        with clients_lock:
+            clients.remove(conn)
+        conn.close()
+        print(f"[PyChat Server] Disconnected {addr}")
 
 # Starts the PyChat server and listens for connections.
 def run_server():

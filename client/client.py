@@ -3,6 +3,10 @@ from tkinter import scrolledtext
 import socket, threading
 import ntplib
 
+client_socket = None
+ntp_client = ntplib.NTPClient()
+user_id = None 
+
 # Sets up GUI and networking.
 root = tk.Tk()
 root.title("PyChat Client")
@@ -23,13 +27,27 @@ ntp_client = ntplib.NTPClient()
 
 # Sets up NTP-guaranteed arrival timestamp with received messages.
 def receive_messages():
+    global user_id
     while True:
         try:
             data = client_socket.recv(1024).decode('utf-8')
             if not data:
                 break
+
+            # Displays assigned user ID
+            if data.startswith("ID:") and user_id is None:
+                user_id = data.split(":", 1)[1]
+                root.title(f"PyChat Client — ID {user_id}")
+                chat_log.config(state='normal')
+                chat_log.insert('end', f"[System] Your user ID: {user_id}\n")
+                chat_log.config(state='disabled')
+                chat_log.yview('end')
+                continue
+
+            # Records NTP-guaranteed timestamp server-side only:
             ts = ntp_client.request('pool.ntp.org', version=3).tx_time
 
+            # Displays the user ID.
             chat_log.config(state='normal')
             chat_log.insert('end', data + "\n")
             chat_log.config(state='disabled')
