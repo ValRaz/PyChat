@@ -3,9 +3,10 @@ from tkinter import scrolledtext
 import socket, threading
 import ntplib
 
+# Sets up global networking and NTP client
 client_socket = None
-ntp_client = ntplib.NTPClient()
-user_id = None 
+ntp_client    = ntplib.NTPClient()
+user_id       = None  
 
 # Sets up GUI and networking.
 root = tk.Tk()
@@ -22,10 +23,7 @@ connect_button.pack(side=tk.LEFT, padx=5, pady=5)
 send_button = tk.Button(root, text="Send", width=10)
 send_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-client_socket = None
-ntp_client = ntplib.NTPClient()
-
-# Sets up NTP-guaranteed arrival timestamp with received messages.
+# Receives messages in a background thread and updates the GUI.
 def receive_messages():
     global user_id
     while True:
@@ -34,7 +32,7 @@ def receive_messages():
             if not data:
                 break
 
-            # Displays assigned user ID
+            # Displays assigned user ID when first received.
             if data.startswith("ID:") and user_id is None:
                 user_id = data.split(":", 1)[1]
                 root.title(f"PyChat Client — ID {user_id}")
@@ -44,10 +42,10 @@ def receive_messages():
                 chat_log.yview('end')
                 continue
 
-            # Records NTP-guaranteed timestamp server-side only:
+            # Records NTP-based timestamp.
             ts = ntp_client.request('pool.ntp.org', version=3).tx_time
 
-            # Displays the user ID.
+            # Displays broadcasted messages.
             chat_log.config(state='normal')
             chat_log.insert('end', data + "\n")
             chat_log.config(state='disabled')
@@ -55,7 +53,7 @@ def receive_messages():
         except:
             break
 
-# Connects to the server and changes button to disconnect.
+# Connects to the server and changes button to Disconnect.
 def connect_to_server():
     global client_socket
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -63,7 +61,7 @@ def connect_to_server():
     connect_button.config(text="Disconnect", command=disconnect_from_server)
     threading.Thread(target=receive_messages, daemon=True).start()
 
-# Disconnects from the server and resets the button back to connect
+# Disconnects from the server and returns button to Connect.
 def disconnect_from_server():
     global client_socket
     try:
@@ -71,21 +69,26 @@ def disconnect_from_server():
     except:
         pass
     client_socket = None
-    # Changes button back
     connect_button.config(text="Connect", command=connect_to_server)
 
-# Message sending
+# Sends the user-typed message to the server.
 def send_message():
     msg = input_box.get().strip()
     if msg and client_socket:
-        client_socket.send(msg.encode('utf-8'))
+        client_socket.sendall(msg.encode('utf-8'))
         input_box.delete(0, tk.END)
 
 connect_button.config(command=connect_to_server)
 send_button.config(command=send_message)
 input_box.bind('<Return>', lambda e: send_message())
 
-# Client auto-connect to server on startup
+# Auto connect on startup.
 root.after(100, connect_to_server)
 
 root.mainloop()
+
+
+
+
+
+
