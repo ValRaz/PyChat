@@ -6,33 +6,60 @@ import ntplib
 # Sets up global networking and NTP client
 client_socket = None
 ntp_client    = ntplib.NTPClient()
-user_id       = None  
+user_id       = None
 
 # Sets up GUI and networking.
 root = tk.Tk()
 root.title("PyChat Client")
 
-chat_log = scrolledtext.ScrolledText(root, width=50, height=20, state='disabled')
-chat_log.pack(padx=10, pady=10)
+# Creates a frame to hold chat log and input row
+left_frame = tk.Frame(root)
+left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-input_box = tk.Entry(root, width=40)
-input_box.pack(side=tk.LEFT, padx=(10,0), pady=5)
+# Creates the chat display area
+chat_log = scrolledtext.ScrolledText(
+    left_frame, width=50, height=20, state='disabled'
+)
+chat_log.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-connect_button = tk.Button(root, text="Connect", width=10)
-connect_button.pack(side=tk.LEFT, padx=5, pady=5)
-send_button = tk.Button(root, text="Send", width=10)
-send_button.pack(side=tk.LEFT, padx=5, pady=5)
+# Creates the display input and buttons
+bottom_frame = tk.Frame(left_frame)
+bottom_frame.pack(side=tk.TOP, fill=tk.X)
+
+# Creates message input and buttons in bottom_frame
+input_box = tk.Entry(bottom_frame, width=40)
+send_button = tk.Button(bottom_frame, text="Send", width=10)
+connect_button = tk.Button(bottom_frame, text="Connect", width=10)
+
+input_box.pack(side=tk.LEFT, padx=5, pady=(0,10))
+send_button.pack(side=tk.LEFT, padx=5, pady=(0,10))
+connect_button.pack(side=tk.LEFT, padx=5, pady=(0,10))
+
+# Creates connected users list
+user_listbox = tk.Listbox(root, width=15)
+user_listbox.pack(side=tk.RIGHT, fill=tk.Y, padx=(0,10), pady=10)
+user_listbox.insert(tk.END, "Users:")
 
 # Receives messages in a background thread and updates the GUI.
 def receive_messages():
     global user_id
     while True:
         try:
-            data = client_socket.recv(1024).decode('utf-8')
+            data = client_socket.recv(4096).decode('utf-8')
             if not data:
                 break
 
-            # Displays assigned user ID when first received.
+            # Updates the online users list
+            if data.startswith("USERS:"):
+                ids = data.split(":", 1)[1].split(",")
+                user_listbox.delete(0, tk.END)
+                user_listbox.insert(tk.END, "Users:")
+                for uid in ids:
+                    if uid:
+                        user_listbox.insert(tk.END, uid)
+                continue
+
+            # Displays user ID as assigned.
             if data.startswith("ID:") and user_id is None:
                 user_id = data.split(":", 1)[1]
                 root.title(f"PyChat Client — ID {user_id}")
@@ -42,16 +69,21 @@ def receive_messages():
                 chat_log.yview('end')
                 continue
 
-            # Records NTP-based timestamp.
-            ts = ntp_client.request('pool.ntp.org', version=3).tx_time
-
-            # Displays broadcasted messages.
+            # Displays broadcasted or private messages.
             chat_log.config(state='normal')
             chat_log.insert('end', data + "\n")
             chat_log.config(state='disabled')
             chat_log.yview('end')
+
         except:
             break
+
+# Sends user messages to the server.
+def send_message():
+    msg = input_box.get().strip()
+    if msg and client_socket:
+        client_socket.sendall(msg.encode('utf-8'))
+        input_box.delete(0, tk.END)
 
 # Connects to the server and changes button to Disconnect.
 def connect_to_server():
@@ -71,24 +103,24 @@ def disconnect_from_server():
     client_socket = None
     connect_button.config(text="Connect", command=connect_to_server)
 
-# Sends the user-typed message to the server.
-def send_message():
-    msg = input_box.get().strip()
-    if msg and client_socket:
-        client_socket.sendall(msg.encode('utf-8'))
-        input_box.delete(0, tk.END)
+# Opens private messaging on click.
+def on_user_select(event):
+    selection = event.widget.curselection()
+    if selection:
+        idx = selection[0]
+        target_uid = event.widget.get(idx)
+        if target_uid != "Users:":
+            input_box.delete(0, tk.END)
+            input_box.insert(0, f"/msg {target_uid} ")
+            input_box.focus()
 
-connect_button.config(command=connect_to_server)
+# Wires up buttons and listbox events
 send_button.config(command=send_message)
+connect_button.config(command=connect_to_server)
 input_box.bind('<Return>', lambda e: send_message())
+user_listbox.bind('<<ListboxSelect>>', on_user_select)
 
 # Auto connect on startup.
 root.after(100, connect_to_server)
 
 root.mainloop()
-
-
-
-
-
-
