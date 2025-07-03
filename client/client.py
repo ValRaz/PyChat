@@ -28,7 +28,7 @@ bottom_frame.pack(side=tk.TOP, fill=tk.X)
 
 # Creates message input and buttons in bottom_frame
 input_box = tk.Entry(bottom_frame, width=40)
-send_button = tk.Button(bottom_frame, text="Send", width=10)
+send_button = tk.Button(bottom_frame, text="Send",    width=10)
 connect_button = tk.Button(bottom_frame, text="Connect", width=10)
 
 input_box.pack(side=tk.LEFT, padx=5, pady=(0,10))
@@ -38,45 +38,55 @@ connect_button.pack(side=tk.LEFT, padx=5, pady=(0,10))
 # Creates connected users list
 user_listbox = tk.Listbox(root, width=15)
 user_listbox.pack(side=tk.RIGHT, fill=tk.Y, padx=(0,10), pady=10)
-user_listbox.insert(tk.END, "Users:")
+user_listbox.insert(tk.END, "Users:")  # Adds static header to listbox
 
 # Receives messages in a background thread and updates the GUI.
 def receive_messages():
-    global user_id
+    buffer = ""
     while True:
         try:
-            data = client_socket.recv(4096).decode('utf-8')
-            if not data:
+            chunk = client_socket.recv(4096).decode('utf-8')
+            if not chunk:
                 break
-
-            # Updates the online users list
-            if data.startswith("USERS:"):
-                ids = data.split(":", 1)[1].split(",")
-                user_listbox.delete(0, tk.END)
-                user_listbox.insert(tk.END, "Users:")
-                for uid in ids:
-                    if uid:
-                        user_listbox.insert(tk.END, uid)
-                continue
-
-            # Displays user ID as assigned.
-            if data.startswith("ID:") and user_id is None:
-                user_id = data.split(":", 1)[1]
-                root.title(f"PyChat Client — ID {user_id}")
-                chat_log.config(state='normal')
-                chat_log.insert('end', f"[System] Your user ID: {user_id}\n")
-                chat_log.config(state='disabled')
-                chat_log.yview('end')
-                continue
-
-            # Displays broadcasted or private messages.
-            chat_log.config(state='normal')
-            chat_log.insert('end', data + "\n")
-            chat_log.config(state='disabled')
-            chat_log.yview('end')
-
+            buffer += chunk
+            while '\n' in buffer:
+                line, buffer = buffer.split('\n', 1)
+                handle_message(line.strip())
         except:
             break
+
+# Handles each line of message from server.
+def handle_message(data):
+    global user_id
+
+    # Updates the online users list
+    if data.startswith("USERS:"):
+        ids = data.split(":", 1)[1].split(",")
+        user_listbox.delete(0, tk.END)
+        user_listbox.insert(tk.END, "Users:")  # Re-adds header after clear
+        for uid in ids:
+            if uid:
+                user_listbox.insert(tk.END, uid)
+        return
+
+    # Displays user ID as assigned.
+    if data.startswith("ID:") and user_id is None:
+        user_id = data.split(":", 1)[1]
+        root.title(f"PyChat Client — ID {user_id}")
+        chat_log.config(state='normal')
+        chat_log.insert('end', f"[System] Your user ID: {user_id}\n")
+        chat_log.config(state='disabled')
+        chat_log.yview('end')
+        return
+
+    # Records NTP-based timestamp (server-side only).
+    ts = ntp_client.request('pool.ntp.org', version=3).tx_time
+
+    # Displays broadcasted or private messages.
+    chat_log.config(state='normal')
+    chat_log.insert('end', data + "\n")
+    chat_log.config(state='disabled')
+    chat_log.yview('end')
 
 # Sends user messages to the server.
 def send_message():
@@ -109,7 +119,7 @@ def on_user_select(event):
     if selection:
         idx = selection[0]
         target_uid = event.widget.get(idx)
-        if target_uid != "Users:":
+        if target_uid != "Users:":  # Ignores header row
             input_box.delete(0, tk.END)
             input_box.insert(0, f"/msg {target_uid} ")
             input_box.focus()
