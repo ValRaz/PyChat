@@ -5,8 +5,8 @@ import ntplib
 
 # Sets up global networking and NTP client
 client_socket = None
-ntp_client    = ntplib.NTPClient()
-user_id       = None
+ntp_client = ntplib.NTPClient()
+user_id = None
 
 # Sets up GUI and networking.
 root = tk.Tk()
