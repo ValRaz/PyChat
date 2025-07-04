@@ -52,7 +52,7 @@ def handle_client(conn, addr):
             if message.startswith("/msg "):
                 parts = message.split(" ", 2)
                 if len(parts) < 3:
-                    continue  # Ignore malformed message
+                    continue
                 target_uid, private_text = parts[1], parts[2]
                 target_conn = user_sockets.get(target_uid)
                 if target_conn:

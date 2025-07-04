@@ -15,7 +15,7 @@ Each client window will automatically connect, receive a unique 6-digit User ID,
 
 I built this software to practice low-level TCP socket programming, thread-safe server design, interactive GUI construction with Tkinter, and automated testing with pytest.
 
-[Software Demo Video](http://youtube.link.goes.here)
+[Software Demo Video](https://www.youtube.com/watch?v=Zpo5Pu6H6r8)
 
 # Network Communication
 
