@@ -63,7 +63,7 @@ def handle_message(data):
     if data.startswith("USERS:"):
         ids = data.split(":", 1)[1].split(",")
         user_listbox.delete(0, tk.END)
-        user_listbox.insert(tk.END, "Users:")  # Re-adds header after clear
+        user_listbox.insert(tk.END, "Users:")
         for uid in ids:
             if uid:
                 user_listbox.insert(tk.END, uid)
@@ -119,7 +119,7 @@ def on_user_select(event):
     if selection:
         idx = selection[0]
         target_uid = event.widget.get(idx)
-        if target_uid != "Users:":  # Ignores header row
+        if target_uid != "Users:":
             input_box.delete(0, tk.END)
             input_box.insert(0, f"/msg {target_uid} ")
             input_box.focus()
